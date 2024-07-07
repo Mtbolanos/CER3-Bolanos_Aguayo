@@ -1,0 +1,16 @@
+{% extends 'produccion/base.html' %}
+
+{% block title %}Lista de Producción{% endblock %}
+
+{% block content %}
+    <h1>Lista de Producción</h1>
+    <ul>
+        {% for produccion in producciones %}
+            <li>
+                {{ produccion.producto.planta.nombre }} - {{ produccion.producto.nombre }} - {{ produccion.litros }} litros - {{ produccion.fecha }} - {{ produccion.turno }} - Registrado por: {{ produccion.operador.username }}
+                <a href="{% url 'modificar_produccion' produccion.pk %}">Modificar</a>
+            </li>
+        {% endfor %}
+    </ul>
+    <a href="{% url 'registrar_produccion' %}" class="btn btn-primary">Registrar Nueva Producción</a>
+{% endblock %}
