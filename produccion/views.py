@@ -1,28 +1,16 @@
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from .models import Produccion
 from .forms import ProduccionForm
 from django.utils import timezone
+from django.db.models import Sum
 import requests
 import json
-from django.contrib.auth import login
+from django.contrib.auth import login, authenticate
 from .forms import RegistroForm
-from django.shortcuts import render, redirect, get_object_or_404
-
-def registro(request):
-    if request.method == 'POST':
-        form = RegistroForm(request.POST)
-        if form.is_valid():
-            user = form.save()
-            login(request, user)
-            return redirect('lista_produccion')
-    else:
-        form = RegistroForm()
-    return render(request, 'produccion/registro.html', {'form': form})
-
 
 def notificar_slack(mensaje):
-    url = 'https://hooks.slack.com/services/TU_CANAL/WEBHOOK_URL'
+    url = 'https://hooks.slack.com/services/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'
     payload = {'text': mensaje}
     headers = {'Content-Type': 'application/json'}
     response = requests.post(url, data=json.dumps(payload), headers=headers)
@@ -36,10 +24,24 @@ def registrar_produccion(request):
         form = ProduccionForm(request.POST)
         if form.is_valid():
             produccion = form.save(commit=False)
-            produccion.operador = request.user
+            produccion.operador = request.user.get_full_name()
             produccion.save()
             # Notificar a Slack
-            mensaje = f'Nueva producción registrada: Planta {produccion.producto.planta.nombre}, Producto {produccion.producto.nombre}, Litros {produccion.litros}, Fecha {produccion.fecha}, Turno {produccion.turno}'
+            total_produccion_operador = Produccion.objects.filter(
+                operador=produccion.operador,
+                anulado=False
+            ).aggregate(total=Sum('cantidad'))['total'] or 0
+            total_produccion_general = Produccion.objects.filter(
+                anulado=False
+            ).aggregate(total=Sum('cantidad'))['total'] or 0
+            fecha_formateada = produccion.fecha.strftime('%Y-%m-%d %H:%M')
+            mensaje = ( 
+                f'Nueva producción registrada: {fecha_formateada}  '
+                f'{produccion.planta.nombre} - {produccion.operador} - '
+                f'{produccion.producto.nombre}  {produccion.cantidad} lts. | '
+                f'Total Almacenado por {produccion.operador}: {total_produccion_operador} lts. - '
+                f'Total Almacenado: {total_produccion_general} lts.'
+            )
             notificar_slack(mensaje)
             return redirect('lista_produccion')
     else:
@@ -47,18 +49,60 @@ def registrar_produccion(request):
     return render(request, 'produccion/registrar_produccion.html', {'form': form})
 
 @login_required
-def modificar_produccion(request, pk):
-    produccion = get_object_or_404(Produccion, pk=pk, operador=request.user)
-    if request.method == 'POST':
-        form = ProduccionForm(request.POST, instance=produccion)
-        if form.is_valid():
-            form.save()
-            return redirect('lista_produccion')
+def lista_produccion(request):
+    es_supervisor = request.user.groups.filter(name='supervisor').exists()
+    es_admin = request.user.groups.filter(name='admin').exists()
+    if es_supervisor or es_admin:
+        producciones = Produccion.objects.filter(anulado=False)
+        return render(request, 'produccion/lista_produccion.html', {'producciones': producciones})
     else:
-        form = ProduccionForm(instance=produccion)
-    return render(request, 'produccion/modificar_produccion.html', {'form': form})
+        producciones = Produccion.objects.filter(operador=request.user.get_full_name(), anulado=False)
+        return render(request, 'produccion/lista_produccion.html', {'producciones': producciones})
 
 @login_required
-def lista_produccion(request):
-    producciones = Produccion.objects.filter(operador=request.user)
-    return render(request, 'produccion/lista_produccion.html', {'producciones': producciones})
+def modificar_produccion(request, pk):
+    es_supervisor = request.user.groups.filter(name='supervisor').exists()
+    es_admin = request.user.groups.filter(name='admin').exists()
+    if es_supervisor or es_admin:
+        produccion = get_object_or_404(Produccion.objects.all(), pk=pk)
+        if request.method == 'POST':
+            form = ProduccionForm(request.POST, instance=produccion)
+            if form.is_valid():
+                form.save()
+                return redirect('lista_produccion')
+        else:
+            form = ProduccionForm(instance=produccion)
+        return render(request, 'produccion/modificar_produccion.html', {'form': form})
+    else:
+        produccion = get_object_or_404(Produccion, pk=pk, operador=request.user.get_full_name())
+        if request.method == 'POST':
+            form = ProduccionForm(request.POST, instance=produccion)
+            if form.is_valid():
+                form.save()
+                return redirect('lista_produccion')
+        else:
+            form = ProduccionForm(instance=produccion)
+        return render(request, 'produccion/modificar_produccion.html', {'form': form})
+    
+def home(request):
+    title = "Inicio"
+
+    data = {
+        "title" : title,
+    }
+
+    return render(request, 'home.html',data)
+
+def login_view(request):
+    error_message = None
+    if request.method == 'POST':
+        username = request.POST.get('username')
+        password = request.POST.get('password')
+        user = authenticate(request, username=username, password=password)
+        if user is not None:
+            login(request, user)
+            return redirect('home')
+        else:
+            error_message = 'Nombre de usuario o contraseña incorrectos.'
+            
+    return render(request, 'registration/login.html', {'error_message': error_message})

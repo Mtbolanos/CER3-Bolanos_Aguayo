@@ -3,14 +3,44 @@
 {% block title %}Lista de Producción{% endblock %}
 
 {% block content %}
-    <h1>Lista de Producción</h1>
-    <ul>
-        {% for produccion in producciones %}
+<h1>Lista de Producción Registrada</h1>
+<ul>
+    {% if user.is_authenticated %}
+        {% for group in user.groups.all %}
+            {% if group.name == 'operador' %}
+                {% for produccion in producciones %}
+                <li>
+                    {{ produccion.fechahora|date:"d-m-y H:i" }}
+                    {{ produccion.planta.nombre }} -
+                    {{ produccion.producto.nombre }} -
+                    {{ produccion.cantidad|floatformat:0 }} lts.
+                    <a href="{% url 'modificar_produccion' produccion.pk %}">Modificar</a>
+                </li>
+                {% endfor %}
+            {% elif group.name == 'supervisor' %}
+                {% for produccion in producciones %}
+                <li>
+                    {{ produccion.operador }} -
+                    {{ produccion.fechahora|date:"d-m-y H:i" }}
+                    {{ produccion.planta.nombre }} -
+                    {{ produccion.producto.nombre }} -
+                    {{ produccion.cantidad|floatformat:0 }} lts.
+                    <a href="{% url 'modificar_produccion' produccion.pk %}">Modificar</a>
+                </li>
+                {% endfor %}
+        {% elif group.name == 'admin' %}
+            {% for produccion in producciones %}
             <li>
-                {{ produccion.producto.planta.nombre }} - {{ produccion.producto.nombre }} - {{ produccion.litros }} litros - {{ produccion.fecha }} - {{ produccion.turno }} - Registrado por: {{ produccion.operador.username }}
+                {{ produccion.operador }} -
+                {{ produccion.fechahora|date:"d-m-y H:i" }}
+                {{ produccion.planta.nombre }} -
+                {{ produccion.producto.nombre }} -
+                {{ produccion.cantidad|floatformat:0 }} lts.
                 <a href="{% url 'modificar_produccion' produccion.pk %}">Modificar</a>
             </li>
+            {% endfor %}
+        {% endif %}
         {% endfor %}
-    </ul>
-    <a href="{% url 'registrar_produccion' %}" class="btn btn-primary">Registrar Nueva Producción</a>
+    {% endif %}
+</ul>
 {% endblock %}

@@ -6,7 +6,7 @@ from django.contrib.auth.forms import UserCreationForm
 class ProduccionForm(forms.ModelForm):
     class Meta:
         model = Produccion
-        fields = ['producto', 'litros', 'fecha', 'turno']
+        fields = ['planta', 'producto', 'cantidad']
 
 class RegistroForm(UserCreationForm):
     email = forms.EmailField(required=True)
