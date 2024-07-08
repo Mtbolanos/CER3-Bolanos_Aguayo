@@ -8,18 +8,12 @@ class ProduccionList(generics.ListAPIView):
     def get_queryset(self):
         planta = self.request.query_params.get('planta')
         producto = self.request.query_params.get('producto')
-        anio = self.request.query_params.get('anio')
-        mes = self.request.query_params.get('mes')
-        dia = self.request.query_params.get('dia')
+        fecha = self.request.query_params.get('fecha')
         queryset = Produccion.objects.all()
         if planta:
             queryset = queryset.filter(planta__nombre=planta)
         if producto:
             queryset = queryset.filter(producto__nombre=producto)
-        if anio:
-            queryset = queryset.filter(fecha__year=anio)
-        if mes:
-            queryset = queryset.filter(fecha__month=mes)
-        if dia:
-            queryset = queryset.filter(fecha__day=dia)
+        if fecha:
+            queryset = queryset.filter(fecha__year=fecha)
         return queryset
