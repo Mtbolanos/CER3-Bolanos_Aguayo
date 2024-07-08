@@ -10,7 +10,7 @@ from django.contrib.auth import login, authenticate
 from .forms import RegistroForm
 
 def notificar_slack(mensaje):
-    url = ''
+    url = 'cuidao'
     payload = {'text': mensaje}
     headers = {'Content-Type': 'application/json'}
     response = requests.post(url, data=json.dumps(payload), headers=headers)
